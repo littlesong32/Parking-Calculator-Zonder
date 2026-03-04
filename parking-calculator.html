@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="停車費" />
+  <title>停車費計算器</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      background: #1a1a1a;
+      font-family: 'Courier New', Courier, monospace;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 48px) 20px env(safe-area-inset-bottom, 32px);
+    }
+
+    .wrapper { width: 100%; max-width: 440px; padding-top: 16px; }
+
+    /* Header */
+    .header { border-left: 4px solid #f5c518; padding-left: 14px; margin-bottom: 24px; }
+    .header-sub   { color: #f5c518; font-size: 11px; letter-spacing: 0.3em; margin-bottom: 4px; }
+    .header-title { color: #fff; font-size: 26px; font-weight: 700; letter-spacing: 0.05em; }
+    .header-en    { color: #555; font-size: 10px; letter-spacing: 0.2em; margin-top: 4px; }
+
+    /* Quick-tap buttons */
+    .quick-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+    .quick-btn {
+      border: none; border-radius: 4px; padding: 16px 12px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      cursor: pointer; transition: filter 0.15s;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    .quick-btn:active { filter: brightness(0.85); }
+    .quick-btn .qb-icon  { font-size: 22px; }
+    .quick-btn .qb-title { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; }
+    .quick-btn .qb-sub   { font-size: 10px; letter-spacing: 0.05em; opacity: 0.65; }
+
+    .quick-btn.entry { background: #f5c518; color: #111; }
+    .quick-btn.exit  { background: #2d5a2d; color: #7ecb7e; border: 1px solid #3a7a3a; }
+    .quick-btn.exit.active-exit { background: #1e3a1e; color: #4caf50; }
+
+    /* Chips */
+    .chip {
+      display: none;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chip.entry-chip { background: #2a2200; border: 1px solid #6b5000; }
+    .chip.exit-chip  { background: #1e2a1e; border: 1px solid #2d5a2d; }
+
+    .chip-left   { display: flex; flex-direction: column; gap: 3px; }
+    .chip-label  { font-size: 10px; letter-spacing: 0.2em; }
+    .chip.entry-chip .chip-label { color: #f5c518; }
+    .chip.exit-chip  .chip-label { color: #4caf50; }
+    .chip-time   { color: #e0e0e0; font-size: 14px; font-weight: 700; }
+
+    .chip-actions { display: flex; gap: 8px; }
+    .chip-btn {
+      border: none; border-radius: 3px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px; letter-spacing: 0.08em;
+      padding: 7px 11px; cursor: pointer;
+    }
+    .chip-btn.fill  { background: #3a3010; color: #f5c518; }
+    .chip-btn.fill.green { background: #2d5a2d; color: #4caf50; }
+    .chip-btn.fill:active { filter: brightness(1.2); }
+    .chip-btn.del   { background: transparent; color: #444; border: 1px solid #2e2e2e; }
+    .chip-btn.del:active { color: #777; }
+
+    /* Card */
+    .card {
+      background: #242424;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 24px 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    .field { margin-bottom: 20px; }
+    .label { color: #555; font-size: 10px; letter-spacing: 0.2em; margin-bottom: 7px; display: block; }
+
+    input[type="date"],
+    input[type="time"],
+    input[type="number"] {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 3px;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 15px;
+      padding: 11px 12px;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input:focus { border-color: #555; }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.35); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }
+    .divider-line  { flex: 1; height: 1px; background: #2e2e2e; }
+    .divider-label { font-size: 10px; letter-spacing: 0.25em; }
+    .divider-label.entry { color: #f5c518; }
+    .divider-label.exit  { color: #4caf50; }
+
+    .btn-row { display: flex; gap: 12px; margin-top: 8px; }
+    .btn-calc {
+      flex: 1; background: #f5c518; color: #111; border: none; border-radius: 3px;
+      padding: 14px 0; font-family: inherit; font-weight: 700; font-size: 14px;
+      letter-spacing: 0.15em; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-calc:active { background: #d4a900; }
+    .btn-reset {
+      background: transparent; color: #555; border: 1px solid #333; border-radius: 3px;
+      padding: 14px 18px; font-family: inherit; font-size: 12px;
+      cursor: pointer; letter-spacing: 0.1em;
+    }
+    .btn-reset:active { color: #888; border-color: #666; }
+
+    /* Result */
+    .result { margin-top: 22px; border-radius: 3px; padding: 18px; animation: fadeIn 0.3s ease; }
+    .result.success { background: #1e2a1e; border: 1px solid #2d5a2d; }
+    .result.error   { background: #2a1a1a; border: 1px solid #5c2020; }
+    .result-label  { font-size: 10px; letter-spacing: 0.25em; margin-bottom: 12px; color: #4caf50; }
+    .result-detail { color: #888; font-size: 13px; margin-bottom: 6px; }
+    .result-detail span { color: #ccc; }
+    .result-sep    { height: 1px; background: #2d5a2d; margin: 14px 0; }
+    .result-fee-row { display: flex; align-items: baseline; }
+    .result-fee-label { color: #4caf50; font-size: 10px; letter-spacing: 0.2em; }
+    .result-fee    { color: #f5c518; font-size: 36px; font-weight: 700; margin-left: auto; }
+    .result-error  { color: #ff6b6b; font-size: 13px; letter-spacing: 0.05em; }
+
+    .footer { color: #333; font-size: 10px; text-align: center; margin-top: 20px; letter-spacing: 0.15em; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #toast {
+      position: fixed; bottom: 40px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #f5c518; color: #111;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.15em;
+      padding: 10px 20px; border-radius: 20px;
+      opacity: 0; transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-sub">地下車庫</div>
+    <div class="header-title">停車費計算器</div>
+    <div class="header-en">PARKING FEE CALCULATOR</div>
+  </div>
+
+  <!-- 一鍵記錄按鈕 -->
+  <div class="quick-row">
+    <button class="quick-btn entry" id="btnEntry" onclick="recordEntry()">
+      <span class="qb-icon">🅿</span>
+      <span class="qb-title">記錄停入</span>
+      <span class="qb-sub">停車時按我</span>
+    </button>
+    <button class="quick-btn exit" id="btnExit" onclick="recordExit()">
+      <span class="qb-icon">🚗</span>
+      <span class="qb-title">記錄駛出</span>
+      <span class="qb-sub">離開時按我</span>
+    </button>
+  </div>
+
+  <!-- 停入時間 chip -->
+  <div class="chip entry-chip" id="entryChip">
+    <div class="chip-left">
+      <div class="chip-label">已記錄停入時間</div>
+      <div class="chip-time" id="entryChipTime">—</div>
+    </div>
+    <div class="chip-actions">
+      <button class="chip-btn fill" onclick="fillEntry()">填入 ↓</button>
+      <button class="chip-btn del" onclick="clearEntry()">✕</button>
+    </div>
+  </div>
+
+  <!-- 駛出時間 chip -->
+  <div class="chip exit-chip" id="exitChip">
+    <div class="chip-left">
+      <div class="chip-label">已記錄駛出時間</div>
+      <div class="chip-time" id="exitChipTime">—</div>
+    </div>
+    <div class="chip-actions">
+      <button class="chip-btn fill green" onclick="fillExit()">填入 ↓</button>
+      <button class="chip-btn del" onclick="clearExit()">✕</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label class="label">每日收費（元）</label>
+      <input type="number" id="dailyRate" value="20" min="1" oninput="clearResult()" />
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label entry">停入時間</div>
+      <div class="divider-line"></div>
+    </div>
+    <div class="row field">
+      <div>
+        <label class="label">日期</label>
+        <input type="date" id="entryDate" oninput="clearResult()" />
+      </div>
+      <div>
+        <label class="label">時間（選填）</label>
+        <input type="time" id="entryTime" oninput="clearResult()" />
+      </div>
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label exit">駛出時間</div>
+      <div class="divider-line"></div>
+    </div>
+    <div class="row field">
+      <div>
+        <label class="label">日期</label>
+        <input type="date" id="exitDate" oninput="clearResult()" />
+      </div>
+      <div>
+        <label class="label">時間（選填）</label>
+        <input type="time" id="exitTime" oninput="clearResult()" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-calc" onclick="calculate()">計算費用</button>
+      <button class="btn-reset" onclick="resetAll()">重置</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <div class="footer">不足一天按一天計費</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const KEY_ENTRY = 'parking_entry_time';
+  const KEY_EXIT  = 'parking_exit_time';
+
+  window.addEventListener('DOMContentLoaded', refreshChips);
+
+  function refreshChips() {
+    const entry = localStorage.getItem(KEY_ENTRY);
+    const exit  = localStorage.getItem(KEY_EXIT);
+
+    const entryChip = document.getElementById('entryChip');
+    const exitChip  = document.getElementById('exitChip');
+
+    if (entry) {
+      document.getElementById('entryChipTime').textContent = formatDateTime(new Date(entry));
+      entryChip.style.display = 'flex';
+    } else {
+      entryChip.style.display = 'none';
+    }
+
+    if (exit) {
+      document.getElementById('exitChipTime').textContent = formatDateTime(new Date(exit));
+      exitChip.style.display = 'flex';
+    } else {
+      exitChip.style.display = 'none';
+    }
+
+    // If both recorded, auto-fill and calculate
+    if (entry && exit) autoFillAndCalc();
+  }
+
+  function recordEntry() {
+    localStorage.setItem(KEY_ENTRY, new Date().toISOString());
+    refreshChips();
+    showToast('停入時間已記錄 ✓');
+  }
+
+  function recordExit() {
+    localStorage.setItem(KEY_EXIT, new Date().toISOString());
+    refreshChips();
+    showToast('駛出時間已記錄 ✓');
+  }
+
+  function fillEntry() {
+    const saved = localStorage.getItem(KEY_ENTRY);
+    if (!saved) return;
+    const dt = new Date(saved);
+    document.getElementById('entryDate').value = toDateValue(dt);
+    document.getElementById('entryTime').value = toTimeValue(dt);
+    clearResult();
+    showToast('已填入停入時間');
+  }
+
+  function fillExit() {
+    const saved = localStorage.getItem(KEY_EXIT);
+    if (!saved) return;
+    const dt = new Date(saved);
+    document.getElementById('exitDate').value = toDateValue(dt);
+    document.getElementById('exitTime').value = toTimeValue(dt);
+    clearResult();
+    showToast('已填入駛出時間');
+  }
+
+  function clearEntry() {
+    localStorage.removeItem(KEY_ENTRY);
+    refreshChips();
+  }
+
+  function clearExit() {
+    localStorage.removeItem(KEY_EXIT);
+    refreshChips();
+  }
+
+  function autoFillAndCalc() {
+    const entry = localStorage.getItem(KEY_ENTRY);
+    const exit  = localStorage.getItem(KEY_EXIT);
+    if (!entry || !exit) return;
+
+    const entryDt = new Date(entry);
+    const exitDt  = new Date(exit);
+
+    document.getElementById('entryDate').value = toDateValue(entryDt);
+    document.getElementById('entryTime').value = toTimeValue(entryDt);
+    document.getElementById('exitDate').value  = toDateValue(exitDt);
+    document.getElementById('exitTime').value  = toTimeValue(exitDt);
+
+    calculate();
+  }
+
+  function calculate() {
+    const entryDate = document.getElementById('entryDate').value;
+    const exitDate  = document.getElementById('exitDate').value;
+    const entryTime = document.getElementById('entryTime').value || '00:00';
+    const exitTime  = document.getElementById('exitTime').value  || '00:00';
+    const dailyRate = parseFloat(document.getElementById('dailyRate').value) || 0;
+    const el = document.getElementById('result');
+
+    if (!entryDate || !exitDate) {
+      el.innerHTML = '<div class="result error"><div class="result-error">⚠ 請填寫停入及駛出日期</div></div>';
+      return;
+    }
+
+    const entry = new Date(`${entryDate}T${entryTime}`);
+    const exit  = new Date(`${exitDate}T${exitTime}`);
+
+    if (exit <= entry) {
+      el.innerHTML = '<div class="result error"><div class="result-error">⚠ 駛出時間必須晚於停入時間</div></div>';
+      return;
+    }
+
+    const diffMs   = exit - entry;
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    const billed   = Math.ceil(diffDays);
+    const fee      = billed * dailyRate;
+    const hours    = Math.floor(diffMs / (1000 * 60 * 60));
+    const mins     = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const note     = diffDays !== billed
+      ? `<span style="color:#555;font-size:11px;margin-left:6px">（${diffDays.toFixed(2)} 天，進位計算）</span>` : '';
+
+    el.innerHTML = `
+      <div class="result success">
+        <div class="result-label">計算結果</div>
+        <div class="result-detail">實際停留：<span>${hours} 小時 ${mins} 分鐘</span></div>
+        <div class="result-detail">計費天數：<span>${billed} 天</span>${note}</div>
+        <div class="result-sep"></div>
+        <div class="result-fee-row">
+          <span class="result-fee-label">應付金額</span>
+          <span class="result-fee">¥${fee.toLocaleString()}</span>
+        </div>
+      </div>`;
+
+    // Clear both stored times after successful calculation
+    localStorage.removeItem(KEY_ENTRY);
+    localStorage.removeItem(KEY_EXIT);
+    refreshChips();
+  }
+
+  function resetAll() {
+    ['entryDate','entryTime','exitDate','exitTime'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('dailyRate').value = 20;
+    clearResult();
+  }
+
+  function clearResult() { document.getElementById('result').innerHTML = ''; }
+
+  function toDateValue(dt) { return dt.toLocaleDateString('sv-SE'); }
+  function toTimeValue(dt) { return dt.toTimeString().slice(0, 5); }
+  function formatDateTime(dt) {
+    return `${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()}  ${toTimeValue(dt)}`;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+</script>
+</body>
+</html>
